@@ -1,15 +1,15 @@
 import matplotlib.image as mpimg
-import matplotlib.pyplot as plt
 import numpy as np
 import cv2
-import glob
 import time
-from sklearn.svm import LinearSVC
-from sklearn.preprocessing import StandardScaler
+
 from skimage.feature import hog
 
+from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
-#from sklearn.cross_validation import train_test_split
+from sklearn.svm import LinearSVC
+
+
 
 # Define a function to compute binned color features
 def bin_spatial(img, size=(32, 32)):
@@ -120,3 +120,58 @@ def create_feature_image(img_file, cspace='RGB'):
         feature_image = np.copy(image)
 
     return feature_image
+
+
+def train(vehicles_files, not_vehicles_files,
+          cs, spatial_size, hist_bins,
+          orient, pix_per_cell, cell_per_block, hog_channel):
+
+    start_time = time.time()
+
+    test_cars = vehicles_files
+    test_not_cars = not_vehicles_files
+
+    car_features = extract_features(test_cars, cs, spatial_size, hist_bins,
+                                    orient, pix_per_cell, cell_per_block, hog_channel,
+                                    vis_hog=False)
+
+    not_car_features = extract_features(test_not_cars, cs, spatial_size, hist_bins,
+                                        orient, pix_per_cell, cell_per_block, hog_channel,
+                                        vis_hog=False)
+
+    spent_time = time.time() - start_time
+    print('Feature extraction spent time {0:.2f} seconds'.format(spent_time))
+
+    X = np.vstack((car_features, not_car_features)).astype(np.float64)
+
+    # Normalize data
+    # fit a per column scaler
+    X_scaler = StandardScaler().fit(X)
+    # apply the scaler to X
+    X_scaled = X_scaler.transform(X)
+
+    # define the labels vector y
+    # 1 - is the label for Car
+    # 0 - is the label for Not Car
+    y = np.hstack((np.ones(len(car_features)), np.zeros(len(not_car_features))))
+
+    # split the data into train and test sets
+    # train_test_split splits arrays into random train and test subsets
+    rand_state = np.random.randint(0, 100)
+    X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.1, random_state=rand_state)
+
+    print('Feature vector length:', len(X_train[0]))
+
+    # Train using LinearSVC (Linear Support Vector Classification)
+    start_time = time.time()
+    svc = LinearSVC()
+    svc.fit(X_train, y_train)
+
+    spent_time = time.time() - start_time
+    print('Training spent time {0:.2f} seconds'.format(spent_time))
+
+    # check the test accuracy of the model
+    test_accuracy = svc.score(X_test, y_test)
+    print('Test Accuracy: {0:.3f}'.format(test_accuracy))
+
+    return svc, X_scaler
