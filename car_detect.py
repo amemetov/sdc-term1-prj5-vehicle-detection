@@ -50,6 +50,63 @@ def draw_labeled_bboxes(img, labels):
     return img
 
 
+def find_windows(img, y_start=300, x_overlap=0.5,
+                 start_level_win_size=256, end_level_win_size=64, n_levels=4,
+                 start_level_color=(255, 0, 0), end_level_color=(0, 255, 128),
+                 visualize=True):
+    draw_img = np.copy(img)
+    img = img.astype(np.float32) / 255
+
+    h, w = img.shape[0], img.shape[1]
+
+    # the list of detected windows in form ((x1, y1), (x2, y2))
+    windows = []
+
+    win_size_step = (start_level_win_size - end_level_win_size) // (n_levels - 1)
+    y_step = win_size_step // 2
+    color_step = (np.asarray(end_level_color) - np.asarray(start_level_color)) // (n_levels - 1)
+
+    y = y_start
+    win_size = start_level_win_size
+    color = np.asarray(start_level_color)
+    for l in range(n_levels):
+        x_start_stop = (0, w)
+
+        # Compute the span of the region to be searched
+        xspan = x_start_stop[1] - x_start_stop[0]
+
+        # Compute the number of pixels per step in x
+        nx_pix_per_step = np.int(win_size * (1 - x_overlap))
+
+        # Compute the number of windows in x
+        nx_buffer = np.int(win_size * x_overlap)
+        nx_wins = np.int((xspan - nx_buffer) / nx_pix_per_step) + 1
+
+        level_color = (int(color[0]), int(color[1]), int(color[2]))
+
+        for xs in range(nx_wins):
+            # Calculate window position
+            x_start = xs * nx_pix_per_step + x_start_stop[0]
+            x_end = x_start + win_size
+
+            win_left_top = (x_start, y)
+            win_right_bottom = (x_end, y + win_size)
+
+            windows.append((win_left_top, win_right_bottom))
+
+            if visualize:
+                cv2.rectangle(draw_img, win_left_top, win_right_bottom, level_color, 6)
+
+
+        # move to the next level
+        y += y_step
+        win_size -= win_size_step
+        color += color_step
+
+    print('Detected windows number: {0}'.format(len(windows)))
+    return draw_img, windows
+
+
 # Define a single function that can extract features using hog sub-sampling and make predictions
 def find_cars(img, ystart, ystop, scale, svc, X_scaler, cspace, orient, pix_per_cell, cell_per_block, spatial_size, hist_bins):
     draw_img = np.copy(img)
@@ -109,18 +166,22 @@ def find_cars(img, ystart, ystop, scale, svc, X_scaler, cspace, orient, pix_per_
             test_features = X_scaler.transform(np.hstack((spatial_features, hist_features, hog_features)).reshape(1, -1))
             test_prediction = svc.predict(test_features)
 
+            # search box
+            xbox_left = np.int(xleft * scale)
+            ytop_draw = np.int(ytop * scale)
+            win_draw = np.int(window * scale)
+
+            box_left_top = (xbox_left, ytop_draw + ystart)
+            box_right_bottom = (xbox_left + win_draw, ytop_draw + win_draw + ystart)
+
             if test_prediction == 1:
-                xbox_left = np.int(xleft * scale)
-                ytop_draw = np.int(ytop * scale)
-                win_draw = np.int(window * scale)
-
-                box_left_top = (xbox_left, ytop_draw + ystart)
-                box_right_bottom = (xbox_left + win_draw, ytop_draw + win_draw + ystart)
-
                 # draw a box
                 cv2.rectangle(draw_img, box_left_top, box_right_bottom, (0, 0, 255), 6)
 
                 # add found box to list
                 box_list.append((box_left_top, box_right_bottom))
+            else:
+                print('Box {0}'.format((box_left_top, box_right_bottom)))
+                #cv2.rectangle(draw_img, box_left_top, box_right_bottom, (255, 0, 0), 6)
 
     return draw_img, box_list
