@@ -1,5 +1,6 @@
 import numpy as np
 import cv2
+import math
 
 from features import bin_spatial, color_hist, get_hog_features
 
@@ -50,12 +51,11 @@ def draw_labeled_bboxes(img, labels):
     return img
 
 
-def find_windows(img, y_start=300, x_overlap=0.5,
-                 start_level_win_size=256, end_level_win_size=64, n_levels=4,
+def find_windows(img, y_start=280, x_overlap=0.5,
+                 start_level_win_size=320, end_level_win_size=64, n_levels=6,
                  start_level_color=(255, 0, 0), end_level_color=(0, 255, 128),
                  visualize=True):
     draw_img = np.copy(img)
-    img = img.astype(np.float32) / 255
 
     h, w = img.shape[0], img.shape[1]
 
@@ -70,23 +70,32 @@ def find_windows(img, y_start=300, x_overlap=0.5,
     win_size = start_level_win_size
     color = np.asarray(start_level_color)
     for l in range(n_levels):
-        x_start_stop = (0, w)
+        x_level_start = 0
 
         # Compute the span of the region to be searched
-        xspan = x_start_stop[1] - x_start_stop[0]
+        xspan = w - x_level_start
 
         # Compute the number of pixels per step in x
         nx_pix_per_step = np.int(win_size * (1 - x_overlap))
 
         # Compute the number of windows in x
         nx_buffer = np.int(win_size * x_overlap)
-        nx_wins = np.int((xspan - nx_buffer) / nx_pix_per_step) + 1
+        nx_wins = np.int((xspan - nx_buffer) / nx_pix_per_step)
+
+        # Compute how many pixels are used
+        x_total_win_size = nx_wins * nx_pix_per_step
+        if x_overlap > 0:
+            x_total_win_size += nx_pix_per_step
+
+        # Shift windows to center if they do not fill the image along width
+        if x_total_win_size < w:
+            x_level_start = (w - x_total_win_size) // 2
 
         level_color = (int(color[0]), int(color[1]), int(color[2]))
 
         for xs in range(nx_wins):
             # Calculate window position
-            x_start = xs * nx_pix_per_step + x_start_stop[0]
+            x_start = xs * nx_pix_per_step + x_level_start
             x_end = x_start + win_size
 
             win_left_top = (x_start, y)
@@ -106,9 +115,73 @@ def find_windows(img, y_start=300, x_overlap=0.5,
     print('Detected windows number: {0}'.format(len(windows)))
     return draw_img, windows
 
+def find_cars(img, wins, svc, X_scaler, cspace, orient, pix_per_cell, cell_per_block, spatial_size, hist_bins,
+              patch_size=(64,64)):
+    h, w = img.shape[0], img.shape[1]
+
+    draw_img = np.copy(img)
+    img = img.astype(np.float32) / 255
+
+    (_, global_y_start), (_, global_y_stop) = wins[0]
+
+    #img_cvt = convert_color(img[global_y_start:global_y_stop], conv=cspace)
+    img_cvt = convert_color(img, conv=cspace)
+    ch1 = img_cvt[:, :, 0]
+    ch2 = img_cvt[:, :, 1]
+    ch3 = img_cvt[:, :, 2]
+
+    # Compute individual channel HOG features for the entire image
+    #hog1 = get_hog_features(ch1, orient, pix_per_cell, cell_per_block, feature_vec=False)
+    #hog2 = get_hog_features(ch2, orient, pix_per_cell, cell_per_block, feature_vec=False)
+    #hog3 = get_hog_features(ch3, orient, pix_per_cell, cell_per_block, feature_vec=False)
+    #print('ch1.shape: {0}'.format(ch1.shape))
+    #print('hog1.shape: {0}'.format(hog1.shape))
+
+    box_list = []
+
+    for win in wins:
+        win_left_top, win_right_bottom = win
+
+        (x_start, y_start) = win_left_top
+        (x_stop, y_stop) = win_right_bottom
+
+        x_stop = min(x_stop, w)
+        if x_start == x_stop:
+            continue
+
+
+        #hog_x_start = x_start // pix_per_cell
+
+        # Extract the image patch
+        subimg = cv2.resize(img_cvt[y_start:y_stop, x_start:x_stop], patch_size)
+
+        # Extract HOG for this patch
+        hog_feat1 = get_hog_features(subimg[:, :, 0], orient, pix_per_cell, cell_per_block, feature_vec=False).ravel()
+        hog_feat2 = get_hog_features(subimg[:, :, 1], orient, pix_per_cell, cell_per_block, feature_vec=False).ravel()
+        hog_feat3 = get_hog_features(subimg[:, :, 2], orient, pix_per_cell, cell_per_block, feature_vec=False).ravel()
+        hog_features = np.hstack((hog_feat1, hog_feat2, hog_feat3))
+
+        # Get color features
+        spatial_features = bin_spatial(subimg, size=spatial_size)
+        hist_features = color_hist(subimg, nbins=hist_bins)
+
+        # Scale features and make a prediction
+        test_features = X_scaler.transform(np.hstack((spatial_features, hist_features, hog_features)).reshape(1, -1))
+        test_prediction = svc.predict(test_features)
+
+        # search box
+        if test_prediction == 1:
+            # draw a box
+            cv2.rectangle(draw_img, win_left_top, win_right_bottom, (0, 0, 255), 6)
+
+            # add found box to list
+            box_list.append((win_left_top, win_right_bottom))
+
+    return draw_img, box_list
+
 
 # Define a single function that can extract features using hog sub-sampling and make predictions
-def find_cars(img, ystart, ystop, scale, svc, X_scaler, cspace, orient, pix_per_cell, cell_per_block, spatial_size, hist_bins):
+def find_cars2(img, ystart, ystop, scale, svc, X_scaler, cspace, orient, pix_per_cell, cell_per_block, spatial_size, hist_bins):
     draw_img = np.copy(img)
     img = img.astype(np.float32) / 255
 
@@ -141,6 +214,8 @@ def find_cars(img, ystart, ystop, scale, svc, X_scaler, cspace, orient, pix_per_
 
     # "box" takes the form ((x1, y1), (x2, y2))
     box_list = []
+
+    print('Blocks: {0}'.format(nxsteps*nysteps))
 
     for xb in range(nxsteps):
         for yb in range(nysteps):
@@ -181,7 +256,8 @@ def find_cars(img, ystart, ystop, scale, svc, X_scaler, cspace, orient, pix_per_
                 # add found box to list
                 box_list.append((box_left_top, box_right_bottom))
             else:
-                print('Box {0}'.format((box_left_top, box_right_bottom)))
+                #print('Box {0}'.format((box_left_top, box_right_bottom)))
                 #cv2.rectangle(draw_img, box_left_top, box_right_bottom, (255, 0, 0), 6)
+                continue
 
     return draw_img, box_list
