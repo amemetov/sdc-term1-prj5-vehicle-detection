@@ -11,25 +11,25 @@ from sklearn.svm import LinearSVC
 
 
 
-# Define a function to compute binned color features
+# Compute binned color features
 def bin_spatial(img, size=(32, 32)):
     # Use cv2.resize().ravel() to create the feature vector
     features = cv2.resize(img, size).ravel()
     # Return the feature vector
     return features
 
-# Define a function to compute color histogram features
-def color_hist(img, nbins=32):#, bins_range=(0, 256)):
+# Compute color histogram features
+def color_hist(img, nbins=32):
     # Compute the histogram of the color channels separately
-    channel1_hist = np.histogram(img[:, :, 0], bins=nbins)#, range=bins_range)
-    channel2_hist = np.histogram(img[:, :, 1], bins=nbins)#, range=bins_range)
-    channel3_hist = np.histogram(img[:, :, 2], bins=nbins)#, range=bins_range)
+    channel1_hist = np.histogram(img[:, :, 0], bins=nbins)
+    channel2_hist = np.histogram(img[:, :, 1], bins=nbins)
+    channel3_hist = np.histogram(img[:, :, 2], bins=nbins)
     # Concatenate the histograms into a single feature vector
     hist_features = np.concatenate((channel1_hist[0], channel2_hist[0], channel3_hist[0]))
     # Return the individual histograms, bin_centers and feature vector
     return hist_features
 
-# Define a function to return HOG features and visualization
+# Return HOG features and visualization
 def get_hog_features(img, orient, pix_per_cell, cell_per_block, vis=False, feature_vec=True):
     # Call with two outputs if vis==True
     if vis == True:
@@ -45,6 +45,7 @@ def get_hog_features(img, orient, pix_per_cell, cell_per_block, vis=False, featu
                        visualise=vis, feature_vector=feature_vec)
         return features
 
+# Return HOG features for specified channel
 def get_hog_features_for_channel(feature_image, hog_channel, orient, pix_per_cell, cell_per_block, vis=False):
     # Call get_hog_features() with vis=False, feature_vec=True
     if hog_channel == 'ALL':
@@ -57,10 +58,9 @@ def get_hog_features_for_channel(feature_image, hog_channel, orient, pix_per_cel
 
     return hog_features
 
-# Define a function to extract features from a list of images
-# Have this function call bin_spatial() and color_hist()
+# Extract features from a list of images
 def extract_features(imgs, cspace='RGB',
-                     spatial_size=(32, 32), hist_bins=32, #hist_range=(0, 256),
+                     spatial_size=(32, 32), hist_bins=32,
                      orient=9, pix_per_cell=8, cell_per_block=2, hog_channel=0,
                      spatial_feat=True, hist_feat=True, hog_feat=True, vis_hog=False):
     # Create a list to append feature vectors to
@@ -80,7 +80,7 @@ def extract_features(imgs, cspace='RGB',
 
         if hist_feat == True:
             # Apply color_hist() also with a color space option now
-            hist_features = color_hist(feature_image, nbins=hist_bins)#, bins_range=hist_range)
+            hist_features = color_hist(feature_image, nbins=hist_bins)
             file_features.append(hist_features)
 
         if hog_feat == True:
@@ -102,26 +102,32 @@ def extract_features(imgs, cspace='RGB',
     return features
 
 
+# Convert image to specified color space and return it as is
 def create_feature_image(img_file, cspace='RGB'):
     # Read in each one by one
     image = mpimg.imread(img_file)
-    # apply color conversion if other than 'RGB'
-    if cspace == 'HSV':
-        feature_image = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
-    elif cspace == 'LUV':
-        feature_image = cv2.cvtColor(image, cv2.COLOR_RGB2LUV)
-    elif cspace == 'HLS':
-        feature_image = cv2.cvtColor(image, cv2.COLOR_RGB2HLS)
-    elif cspace == 'YUV':
-        feature_image = cv2.cvtColor(image, cv2.COLOR_RGB2YUV)
-    elif cspace == 'YCrCb':
-        feature_image = cv2.cvtColor(image, cv2.COLOR_RGB2YCrCb)
-    else:
-        feature_image = np.copy(image)
+
+    # apply color conversion
+    feature_image = convert_color(image, cspace)
 
     return feature_image
 
+# Convert to specified color space
+def convert_color(image, cspace='YCrCb'):
+    if cspace == 'HSV':
+        return cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
+    elif cspace == 'LUV':
+        return cv2.cvtColor(image, cv2.COLOR_RGB2LUV)
+    elif cspace == 'HLS':
+        return cv2.cvtColor(image, cv2.COLOR_RGB2HLS)
+    elif cspace == 'YUV':
+        return cv2.cvtColor(image, cv2.COLOR_RGB2YUV)
+    elif cspace == 'YCrCb':
+        return cv2.cvtColor(image, cv2.COLOR_RGB2YCrCb)
+    else:
+        return np.copy(image)
 
+# Train linear SVC on passed images using passed params to build features
 def train(vehicles_files, not_vehicles_files,
           cs, spatial_size, hist_bins,
           orient, pix_per_cell, cell_per_block, hog_channel):
