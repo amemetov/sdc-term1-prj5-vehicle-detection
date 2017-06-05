@@ -45,8 +45,8 @@ The goals / steps of this project are the following:
 * [car_detect_svm.py](car_detect_svm.py) containing methods for training a classifier and finding car candidates
 * [car_detect.py](car_detect.py) containing methods for sliding windows, heatmaps, solvers for False Positives and Multiple Detections
 * [cnn.py](cnn.py) containing methods to build CNN for classifying cars/not-cars
-* [project_video_out_notavg.mp4](project_video_out_notavg.mp4) the result output video
-* [project_video_out_avg.mp4](project_video_out_avg.mp4) the result output video where current bounding boxes are averaged with recent bounding boxes
+* [project_video_out_notavg.mp4](./output_videos/project_video_out_notavg.mp4) the result output video
+* [project_video_out_avg.mp4](./output_videos/project_video_out_avg.mp4) the result output video where current bounding boxes are averaged with recent bounding boxes
 
 
 ### Histogram of Oriented Gradients (HOG)
