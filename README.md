@@ -104,8 +104,11 @@ So I decided to stop on values:
 #### 3. Describe how (and identify where in your code) you trained a classifier using your selected HOG features (and color features if you used them).
 
 The code for training classifier is contained in the file [car_detect_svm.py](car_detect_svm.py) method `train` (line #13).
+
 Firstly I tried different values for `hog_channel` and noticed that using `ALL` channels gives a better result than using any single channel separatelly.
+
 Then I tried to include/exclude using `spatial_feature` and `hist_feateture`.
+
 Including all of them gives better result.
 
 
@@ -137,13 +140,17 @@ For intermediate levels the necessary parameters are interpolated depending on t
 Ultimately I searched on two scales using YCrCb 3-channel HOG features plus spatially binned color and histograms of color in the feature vector, which provided a nice result.  
 Here are some example images:
 
+Sample1:
 ![alt text][classifier-pipeline1]
 
+Sample2:
 ![alt text][classifier-pipeline2]
 
+Sample3:
 ![alt text][classifier-pipeline3]
 
 Mostly for optimizing the result of classifying I tuned sliding window method to get good result on test images.
+
 For `SVM` itself I used `GridSearchCV` to find the best parameters ([P5-Vehicle-Detection.ipynb](P5-Vehicle-Detection.ipynb) cell #8).
 
 ---
@@ -172,10 +179,13 @@ The final step - constructing bounding boxes to cover the area of each blob dete
 
 Here's an example result showing the whole pipeline:
 
+Sample1:
 ![alt text][whole-pipeline1]
 
+Sample2:
 ![alt text][whole-pipeline2]
 
+Sample3:
 ![alt text][whole-pipeline3]
 
 
@@ -194,7 +204,7 @@ And even after all done work I'm not very satisfied with the final result.
 I tried to use `CNN` ([cnn.py](cnn.py)) to see how it can help, but to tell the truth, built CNN produced a lot of False Postives and False Negatives (for Cars).
 I think that collecting more train data (especially from test video) can improve CNN's performance.
 
-I found that there are many Deep Learning approaches which may give much better result than HOG:
+I found that there are many Deep Learning approaches which may give much better result than manual feature engineering:
 * [R-CNN](https://arxiv.org/abs/1311.2524)
 * [Fast R-CNN](https://arxiv.org/abs/1504.08083)
 * [Faster R-CNN](https://arxiv.org/abs/1506.01497)
