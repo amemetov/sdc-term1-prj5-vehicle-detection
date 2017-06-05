@@ -15,14 +15,18 @@ The goals / steps of this project are the following:
 
 [//]: # (Image References)
 [car-not-car]: ./output_images/car-not-car.png
-[hog-features]: ./output_images/hog-features.png
+[hog-features-orient-6]: ./output_images/hog-features-orient-6.png
+[hog-features-orient-9]: ./output_images/hog-features-orient-9.png
+[hog-features-pix-per-cell-4]: ./output_images/hog-features-pix-per-cell-4.png
+[hog-features-pix-per-cell-16]: ./output_images/hog-features-pix-per-cell-16.png
+[hog-features-cell-per-block-4]: ./output_images/hog-features-cell-per-block-4.png
 [wins-sliding]: ./output_images/wins-sliding.png
 [pipeline.png]: ./output_images/pipeline.png
 [video1]: ./output_videos/project_video_out_notavg.mp4
 [video2]: ./output_videos/project_video_out_avg.mp4
 
 ## [Rubric](https://review.udacity.com/#!/rubrics/513/view) Points
-###Here I will consider the rubric points individually and describe how I addressed each point in my implementation.  
+### Here I will consider the rubric points individually and describe how I addressed each point in my implementation.  
 
 ---
 
@@ -53,14 +57,38 @@ Here is an example of one of each of the `vehicle` and `non-vehicle` classes:
 
 
 I then explored different color spaces and different `skimage.hog()` parameters (`orientations`, `pixels_per_cell`, and `cells_per_block`).  
-I grabbed random images from each of the two classes and displayed them to get a feel for what the `skimage.hog()` output looks like for different color spaces:
+I grabbed random images from each of the two classes and displayed them to get a feel for what the `skimage.hog()` output looks like for different color spaces 
+and HOG parameters of `orientations=6`, `pixels_per_cell=(8, 8)` and `cells_per_block=(2, 2)`:
 
-![alt text][hog-features]
+![alt text][hog-features-orient-6]
 
 
 ####2. Explain how you settled on your final choice of HOG parameters.
 
-I tried various combinations of parameters and...
+I tried various combinations of parameters (`orientations`, `pixels_per_cell`, and `cells_per_block`):
+
+
+`orientations=9`, `pixels_per_cell=(8, 8)` and `cells_per_block=(2, 2)`
+![alt text][hog-features-orient-9]
+
+I noticed that `orientations=9` gives more precise gradients (than for `orientations=6`)  which allow to notice a car (especially for `YCrCb` color space) 
+
+
+Then I tried to tune `pixels_per_cell`:
+
+`orientations=9`, `pixels_per_cell=(4, 4)` and `cells_per_block=(2, 2)`
+![alt text][hog-features-pix-per-cell-4]
+
+`orientations=9`, `pixels_per_cell=(16, 16)` and `cells_per_block=(2, 2)`
+![alt text][hog-features-pix-per-cell-16]
+
+As for me `pixels_per_cell=8` produces optimal result.
+
+
+For `cells_per_block` I did not notice a big difference.
+`orientations=9`, `pixels_per_cell=(8, 8)` and `cells_per_block=(4, 4)`
+![alt text][hog-features-cell-per-block-4]
+
 
 ####3. Describe how (and identify where in your code) you trained a classifier using your selected HOG features (and color features if you used them).
 
